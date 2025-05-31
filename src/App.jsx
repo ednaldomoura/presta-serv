@@ -30,14 +30,20 @@ function App() {
   const handleCamera = async (facingMode) => {
     setCameraActive(true);
     if (videoRef.current) {
+      // Sempre para qualquer stream anterior
       if (videoRef.current.srcObject) {
         videoRef.current.srcObject.getTracks().forEach(track => track.stop());
       }
       try {
-        // Suporte para facingMode como string ou objeto (compatibilidade máxima)
-        let constraints = typeof facingMode === 'object'
-          ? { video: { facingMode } }
-          : { video: { facingMode } };
+        // Melhora: tenta todos os modos possíveis para máxima compatibilidade
+        let constraints;
+        if (typeof facingMode === 'object') {
+          constraints = { video: { facingMode } };
+        } else if (facingMode === 'environment' || facingMode === 'user') {
+          constraints = { video: { facingMode: { ideal: facingMode } } };
+        } else {
+          constraints = { video: true };
+        }
         let stream;
         try {
           stream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -47,7 +53,7 @@ function App() {
         }
         videoRef.current.srcObject = stream;
       } catch (err) {
-        alert('Erro ao acessar a câmera: ' + err.message);
+        alert('Erro ao acessar a câmera: ' + err.message + '\nDê permissão para o navegador acessar a câmera.');
       }
     }
   };
@@ -177,17 +183,22 @@ function App() {
         <input name="servico" placeholder="Serviço" value={form.servico} onChange={handleChange} required />
         <div style={{ margin: '10px 0', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <button type="button" onClick={() => handleCamera({ exact: 'environment' })}>
-            Câmera Traseira (facing back)
+            Abrir Câmera (Traseira)
           </button>
           <button type="button" onClick={() => handleCamera({ exact: 'user' })}>
-            Câmera Frontal (facing front)
+            Abrir Câmera (Frontal)
           </button>
-          <button type="button" onClick={() => handleCamera('environment')}>
-            Câmera Traseira (compatibilidade)
-          </button>
-          <button type="button" onClick={() => handleCamera('user')}>
-            Câmera Frontal (compatibilidade)
-          </button>
+          <label style={{background: '#64748b', color: '#fff', borderRadius: 6, padding: '10px', cursor: 'pointer', display: 'inline-block'}}>
+            Selecionar Arquivo
+            <input type="file" accept="image/*" style={{display: 'none'}} onChange={e => {
+              const file = e.target.files[0];
+              if (file) {
+                const reader = new FileReader();
+                reader.onload = ev => setCapturedPhoto(ev.target.result);
+                reader.readAsDataURL(file);
+              }
+            }} />
+          </label>
           {cameraActive && (
             <button type="button" onClick={handleStopCamera}>Fechar Câmera</button>
           )}
